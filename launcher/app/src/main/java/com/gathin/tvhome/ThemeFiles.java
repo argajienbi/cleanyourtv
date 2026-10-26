@@ -9,6 +9,8 @@ final class ThemeFiles {
     /** The names tools/theme.sh accepts for a collection image, and the types WallpaperRotation reads. */
     private static final Pattern IMAGE = Pattern.compile("[A-Za-z0-9_.-]+\\.(jpg|jpeg|png|webp)",
             Pattern.CASE_INSENSITIVE);
+    /** A theme pack's folder name, the same characters WallpaperRotation and the picker accept. */
+    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_.-]+");
 
     private ThemeFiles() {}
 
@@ -24,7 +26,23 @@ final class ThemeFiles {
                 && (collectionImage(segments.get(1)) || WallpaperCaptions.FILE_NAME.equals(segments.get(1)))) {
             return WALLPAPERS + "/" + segments.get(1);
         }
+        // Theme packs for the Launcher settings picker: themes/<name>/... with the same file names.
+        if (segments.size() >= 3 && "themes".equals(segments.get(0)) && themeName(segments.get(1))) {
+            if (segments.size() == 3) {
+                String name = segments.get(2);
+                return Config.FILE_NAME.equals(name) || "wallpaper.jpg".equals(name) || "theme_revision".equals(name)
+                        ? "themes/" + segments.get(1) + "/" + name : null;
+            }
+            if (segments.size() == 4 && WALLPAPERS.equals(segments.get(2))
+                    && (collectionImage(segments.get(3)) || WallpaperCaptions.FILE_NAME.equals(segments.get(3)))) {
+                return "themes/" + segments.get(1) + "/" + WALLPAPERS + "/" + segments.get(3);
+            }
+        }
         return null;
+    }
+
+    static boolean themeName(String name) {
+        return name != null && !name.startsWith(".") && NAME.matcher(name).matches();
     }
 
     /** True for "wallpapers" alone: a delete of it clears the collection's images. */

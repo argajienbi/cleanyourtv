@@ -411,6 +411,24 @@
     <string name="latitude" translatable="false"></string>
     <string name="longitude" translatable="false"></string>
 
+    <!-- World clock and weather cards just above the dock. Off by default; a theme can set
+         "show_widgets": true. The clock card is left out when world_clock_zones is empty, and the weather
+         card when weather_latitude or weather_longitude is empty. The weather is fetched only while Home is
+         visible, cached on the TV, and hidden silently when there is no network. -->
+    <bool name="show_widgets">false</bool>
+    <!-- IANA time zones for the world clock, in display order, e.g. Europe/London or America/New_York.
+         A theme can set the same list as "world_clock_zones": ["Europe/London", ...]. -->
+    <string-array name="world_clock_zones" translatable="false">
+    </string-array>
+    <!-- Weather widget: the place shown above the temperature, and its decimal coordinates. Open-Meteo needs no
+         key. A theme can set "weather_place", "weather_latitude" and "weather_longitude". -->
+    <string name="weather_place" translatable="false"></string>
+    <string name="weather_latitude" translatable="false"></string>
+    <string name="weather_longitude" translatable="false"></string>
+    <!-- Minutes between weather refreshes while Home is open (5 to 1440). A theme can set
+         "weather_refresh_minutes": 30. -->
+    <integer name="weather_refresh_minutes">30</integer>
+
     <!-- Cinematic top shelf: the focused dock app's artwork, softened, fills the top of the screen in its
          colour; the shelf gets a larger name, a "Last opened" line (from the apps Home opened) and dock position
          dots, the focus glow takes the app's colour and the dock band turns translucent. false keeps the plain

@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
@@ -15,6 +16,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,11 +32,13 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
     static final String EXTRA_REORDER = "com.gathin.tvhome.extra.REORDER_FROM_SETTINGS";
+    private static final int REQUEST_GALLERY_WALLPAPER = 7;
     private SharedPreferences choices;
     private final TextView[] columnChoices = new TextView[4];
     private final TextView[] rowChoices = new TextView[4];
     private static final int[] DOCK_OPACITIES = {100, 70, 50, 30};
     private final TextView[] dockChoices = new TextView[DOCK_OPACITIES.length];
+    private TextView themeChoice;
     private TextView wallpaperChoice;
     private TextView animationsChoice;
     private TextView advancedChoice;
@@ -55,6 +62,8 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK, new Intent().putExtra(EXTRA_REORDER, true));
             finish();
         });
+        themeChoice = findViewById(R.id.themeChoice);
+        themeChoice.setOnClickListener(v -> showThemePicker());
         columns = config.columns;
         rowsBelowDock = config.rowsBelowDock;
         dockOpacity = config.dockOpacity;
@@ -172,9 +181,10 @@ public final class LauncherSettingsActivity extends Activity {
         // A theme with a single wallpaper.jpg offers that picture too (Config maps the choice back to it).
         File single = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
         if (single != null && single.isFile()) images.add(0, single);
-        String[] labels = new String[images.size() + 1];
+        String[] labels = new String[images.size() + 2];
         for (int i = 0; i < images.size(); i++) labels[i] = images.get(i).getName();
         labels[images.size()] = getString(R.string.wallpaper_none);
+        labels[images.size() + 1] = getString(R.string.wallpaper_gallery);
         String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         int checked = "none".equals(current) ? images.size()
                 : indexOf(images, current);
@@ -182,6 +192,10 @@ public final class LauncherSettingsActivity extends Activity {
                 .setTitle(R.string.wallpaper_label)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
+                    if (which == images.size() + 1) {
+                        openGalleryWallpaper();
+                        return;
+                    }
                     if (which == images.size()) {
                         choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
                     } else {
@@ -196,6 +210,118 @@ public final class LauncherSettingsActivity extends Activity {
                     choices.edit().remove(Config.WALLPAPER_CHOICE_KEY).apply();
                     changed();
                     refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Opens the system picture picker; the chosen picture is copied into the theme's wallpapers folder.
+     * GET_CONTENT comes first because Android TV's OPEN_DOCUMENT handler is often only the framework stub,
+     * which returns "canceled" without showing anything. The installed Gallery answers GET_CONTENT.
+     */
+    private void openGalleryWallpaper() {
+        Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("image/*");
+        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if (startPicker(pick)) return;
+        Intent document = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        document.addCategory(Intent.CATEGORY_OPENABLE);
+        document.setType("image/*");
+        document.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if (!startPicker(document)) {
+            Toast.makeText(this, R.string.not_available, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private boolean startPicker(Intent intent) {
+        ResolveInfo resolved = getPackageManager().resolveActivity(intent, 0);
+        if (resolved == null || resolved.activityInfo == null) return false;
+        if ("com.google.android.tv.frameworkpackagestubs".equals(resolved.activityInfo.packageName)) {
+            return false;
+        }
+        try {
+            startActivityForResult(intent, REQUEST_GALLERY_WALLPAPER);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            return false;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_GALLERY_WALLPAPER || resultCode != RESULT_OK
+                || data == null || data.getData() == null) return;
+        if (saveGalleryWallpaper(data.getData())) {
+            changed();
+            Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
+            refresh();
+        } else {
+            Toast.makeText(this, R.string.wallpaper_gallery_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** Copies at most one picture into wallpapers/ and makes it the on-TV wallpaper choice. */
+    private boolean saveGalleryWallpaper(Uri uri) {
+        File dir = Config.dir(this);
+        if (dir == null) return false;
+        File folder = new File(dir, "wallpapers");
+        if (!folder.isDirectory() && !folder.mkdirs()) return false;
+        String type = getContentResolver().getType(uri);
+        String extension = "image/png".equals(type) ? "png"
+                : "image/webp".equals(type) ? "webp" : "jpg";
+        String name = "gallery-" + System.currentTimeMillis() + "." + extension;
+        File destination = new File(folder, name);
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) return false;
+            try (OutputStream out = new FileOutputStream(destination)) {
+                byte[] buffer = new byte[16 * 1024];
+                long total = 0;
+                int n;
+                while ((n = in.read(buffer)) > 0) {
+                    total += n;
+                    if (total > 10 * 1024 * 1024) throw new IOException("picture too large");
+                    out.write(buffer, 0, n);
+                }
+            }
+        } catch (IOException | SecurityException e) {
+            destination.delete();
+            return false;
+        }
+        if (destination.length() == 0) {
+            destination.delete();
+            return false;
+        }
+        choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, name).apply();
+        return true;
+    }
+
+    /** The installed theme packs, or just the built-in look when none were pushed to the TV. */
+    private void showThemePicker() {
+        List<ThemeStore.Theme> themes = ThemeStore.list(this);
+        String[] labels = new String[themes.size() + 1];
+        labels[0] = getString(R.string.theme_builtin);
+        String applied = ThemeStore.applied(this);
+        int checked = 0;
+        for (int i = 0; i < themes.size(); i++) {
+            labels[i + 1] = themes.get(i).label();
+            if (themes.get(i).name.equals(applied)) checked = i + 1;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.theme_label)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    String name = which == 0 ? null : themes.get(which - 1).name;
+                    if (name == null ? applied == null : name.equals(applied)) return;
+                    if (ThemeStore.apply(this, name)) {
+                        changed();
+                        Toast.makeText(this, R.string.theme_applied, Toast.LENGTH_SHORT).show();
+                        refresh();
+                    } else {
+                        Toast.makeText(this, R.string.theme_apply_failed, Toast.LENGTH_LONG).show();
+                    }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -290,6 +416,7 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(advancedEffects ? R.string.on : R.string.off)));
         advancedChoice.setEnabled(animations);
         advancedChoice.setAlpha(animations ? 1f : 0.5f);
+        themeChoice.setText(getString(R.string.theme_state, ThemeStore.appliedLabel(this)));
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         wallpaperChoice.setText(getString(R.string.wallpaper_state,
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)

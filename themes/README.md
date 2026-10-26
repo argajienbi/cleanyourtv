@@ -84,6 +84,12 @@ A new key needs one there in the same pull request.
 | `lunar_date` | bool | Show the lunisolar date under the Gregorian one, e.g. `LUNAR 13/9 · YEAR OF THE HORSE`, or `13/9 ÂM LỊCH · BÍNH NGỌ` in Vietnamese; a leap month is marked. Off by default |
 | `lunar_utc_offset` | 0 to 14 | Hours east of UTC the lunar calendar is computed for: `7` is the Vietnamese calendar, `8` the Chinese one; they differ by a day now and then (and by a month in 1985). Unset: 7 when the TV is in Vietnamese, 8 otherwise |
 | `date_below_clock` | bool | The date (with the Shamsi and lunar lines) on its own line under the clock instead of beside it, for a top bar whose pills leave the date too little room (`false` by default) |
+| `show_widgets` | bool | World clock and weather cards above the dock (`false` by default); the clock card needs `world_clock_zones`, the weather card both coordinates |
+| `world_clock_zones` | list of time zone ids | Zones for the clock card, up to four shown in order, e.g. `["Asia/Jakarta", "Europe/London"]`; empty leaves the card out |
+| `weather_place` | string | Name shown before the temperature in the weather card, e.g. `"Jakarta"`; empty shows the temperature alone |
+| `weather_latitude` | string | Latitude for the weather card, e.g. `"-6.2088"`; empty leaves the card out |
+| `weather_longitude` | string | Longitude for the weather card, e.g. `"106.8456"`; empty leaves the card out |
+| `weather_refresh_minutes` | 5 to 1440 | Minutes between weather refreshes from Open-Meteo, cached on the TV and shown stale while a refresh fails (`30` by default) |
 | `locale` | string | The language the launcher shows itself in, as a language tag (`"vi"`, `"pt-BR"`), instead of the TV's: for firmware with no menu entry for a language the launcher speaks (a China-market Xiaomi offers Chinese and English only). Empty by default, which follows the TV |
 | `greeting_name` | string | A name after the greeting, e.g. `"Mr. Trịnh"` for GOOD MORNING, MR. TRỊNH; empty for the greeting alone |
 | `show_greeting` | bool | The greeting above the clock (`true` by default); `false` hides it |

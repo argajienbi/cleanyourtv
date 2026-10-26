@@ -80,6 +80,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -193,6 +196,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private List<RaceWeekend.Race> raceCalendar;
     private View racePanel;
     private TextView raceKicker, raceHeadline, raceSessions;
+    /** World clock and weather cards above the dock (show_widgets); hidden unless configured. */
+    private View widgetBar, worldClockCard, weatherCard, widgetDivider;
+    private TextView worldClockValue, weatherValue;
+    private boolean widgetsShown;
+    private List<String> worldClockZones = Collections.emptyList();
+    private String weatherPlace = "", weatherLatitude = "", weatherLongitude = "";
+    private int weatherRefreshMinutes = 30;
     /** config.xml show_stats, overridable by a theme. Off: the line is gone and nothing is read. */
     private boolean showStats;
     private boolean shamsi;
@@ -372,6 +382,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         public void run() {
             updateGreeting();
             updateRace();
+            updateWidgets();
             // The pill follows the network callbacks and each return to Home; only the diya's flame follows the
             // signal level, so only it needs this minute's binder calls (about 7 ms on the UI thread).
             if (festive) updateWifiLabel();
@@ -647,6 +658,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // padding, leaving the glass at the XML design size until a key is pressed.
             grid.post(this::refitGlass);
         });
+        setUpWidgets(cfg);
 
         // Keep the glass glued to its tile while the grid scrolls.
         grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -968,6 +980,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (openLiveTvAfterBoot()) return;
         updateGreeting();
         updateRace();
+        updateWidgets();
         // The network and Inputs pills keep their state while Home is in the background, and callbacks update them
         // when the network or the inputs change, so this refresh only catches anything missed. Its binder calls
         // (about 7 ms on a TCL C755, most of it WifiManager.getConnectionInfo) would hold up the first frame back
@@ -1715,12 +1728,133 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
+    // ---- world clock and weather -----------------------------------------------------------------
+
+    /**
+     * Sets up the cards above the dock. The clock card needs at least one world_clock_zones entry and the weather
+     * card needs both coordinates; without either the bar stays gone, so a TV that never configures it pays nothing.
+     */
+    private void setUpWidgets(Config cfg) {
+        if (!cfg.showWidgets) return;
+        boolean clock = !cfg.worldClockZones.isEmpty();
+        boolean weather = !cfg.weatherLatitude.isEmpty() && !cfg.weatherLongitude.isEmpty();
+        if (!clock && !weather) return;
+        widgetBar = findViewById(R.id.widgetBar);
+        worldClockCard = findViewById(R.id.worldClockCard);
+        weatherCard = findViewById(R.id.weatherCard);
+        widgetDivider = findViewById(R.id.widgetDivider);
+        worldClockValue = findViewById(R.id.worldClockValue);
+        weatherValue = findViewById(R.id.weatherValue);
+        worldClockZones = cfg.worldClockZones;
+        weatherPlace = cfg.weatherPlace;
+        weatherLatitude = cfg.weatherLatitude;
+        weatherLongitude = cfg.weatherLongitude;
+        weatherRefreshMinutes = cfg.weatherRefreshMinutes;
+        worldClockCard.setVisibility(clock ? View.VISIBLE : View.GONE);
+        weatherCard.setVisibility(weather ? View.VISIBLE : View.GONE);
+        widgetDivider.setVisibility(clock && weather ? View.VISIBLE : View.GONE);
+        widgetsShown = true;
+        widgetBar.setVisibility(View.VISIBLE);
+        widgetBar.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            positionWidgetBar();
+            updateHeroPosition();
+        });
+        grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> positionWidgetBar());
+        updateWidgets();
+    }
+
+    private void updateWidgets() {
+        if (!widgetsShown) return;
+        if (worldClockCard.getVisibility() == View.VISIBLE) updateWorldClock();
+        if (weatherCard.getVisibility() != View.VISIBLE) return;
+        WeatherWidget.load(this, weatherLatitude, weatherLongitude, weatherRefreshMinutes, weather -> {
+            if (isDestroyed() || weather == null) return;
+            String description = WeatherWidget.describe(this, weather.code);
+            weatherValue.setText(weatherPlace.isEmpty()
+                    ? getString(R.string.weather_format_no_place, weather.temperature, description)
+                    : getString(R.string.weather_format, weatherPlace, weather.temperature, description));
+            positionWidgetBar();
+            updateHeroPosition();
+        });
+    }
+
+    /** HH:mm in up to four configured zones, with the city part of the zone id as its name. */
+    private void updateWorldClock() {
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm");
+        StringBuilder text = new StringBuilder();
+        int shown = 0;
+        for (String id : worldClockZones) {
+            try {
+                ZoneId zone = ZoneId.of(id);
+                if (text.length() > 0) text.append("   ");
+                text.append(cityOf(id)).append(' ').append(format.format(ZonedDateTime.now(zone)));
+                if (++shown == 4) break;
+            } catch (Exception ignored) {
+                // an unknown zone in config.json is skipped; the others still show
+            }
+        }
+        if (text.length() == 0) {
+            ZoneId zone = ZoneId.systemDefault();
+            text.append(cityOf(zone.getId())).append(' ').append(format.format(ZonedDateTime.now(zone)));
+        }
+        worldClockValue.setText(text);
+    }
+
+    private static String cityOf(String zoneId) {
+        String city = zoneId.substring(zoneId.lastIndexOf('/') + 1).replace('_', ' ');
+        return city.isEmpty() ? zoneId : city;
+    }
+
+    /** Extra distance the shelf keeps from the dock while the cards sit between them. */
+    private float widgetLift() {
+        if (!widgetsShown || widgetBar == null || widgetBar.getVisibility() != View.VISIBLE
+                || widgetBar.getHeight() == 0) return 0f;
+        return widgetBar.getHeight() + 22 * density;
+    }
+
+    /** Puts the cards just above the dock band, inside the blank area the dock leaves there. */
+    private void positionWidgetBar() {
+        if (!widgetsShown || widgetBar == null || widgetBar.getHeight() == 0) return;
+        float y = dockTopInRoot() - widgetBar.getHeight() - 16 * density;
+        widgetBar.setY(Math.max(headerBottomInRoot() + 8 * density, y));
+    }
+
+    /**
+     * A dense theme can leave the first row near the top. The cards still sit above that row, but never on the
+     * clock and pills; hiding the header to show a widget would be worse than a card over a tile.
+     */
+    private float headerBottomInRoot() {
+        View header = findViewById(R.id.topButtons);
+        if (header == null) return 0f;
+        int[] location = new int[2], parent = new int[2];
+        header.getLocationInWindow(location);
+        root.getLocationInWindow(parent);
+        return location[1] - parent[1] + header.getHeight();
+    }
+
+    /** The dock band's top edge in the root's coordinates, or where the grid's padding puts it before layout. */
+    private float dockTopInRoot() {
+        RecyclerView.ViewHolder holder = grid.findViewHolderForAdapterPosition(0);
+        if (holder != null) {
+            int[] dock = new int[2], parent = new int[2];
+            holder.itemView.getLocationInWindow(dock);
+            root.getLocationInWindow(parent);
+            return dock[1] - parent[1] - 6 * density;
+        }
+        return grid.getTop() + grid.getPaddingTop();
+    }
+
+    private void updateHeroPosition() {
+        if (!heroShown) return;
+        hero.setY(dockTopInRoot() - widgetLift() - 40 * density - hero.getHeight());
+    }
+
     // ---- top shelf -------------------------------------------------------------------------------
 
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
+        float y = dockTopInRoot - widgetLift() - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic && heroArtAlpha > 0f) showHeroArt(position);
 

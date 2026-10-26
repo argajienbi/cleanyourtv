@@ -256,6 +256,15 @@ final class Config {
     final boolean singleRow;
     /** With single_row, the band runs behind every app in the row, not only the dock apps (config.xml, dock_band_all). */
     final boolean dockBandAll;
+    /** World clock and weather cards above the dock (config.xml, show_widgets); off by default. */
+    final boolean showWidgets;
+    /** IANA time zones for the world clock (config.xml, world_clock_zones); empty leaves the clock card out. */
+    final List<String> worldClockZones;
+    /** Weather widget: the place name, decimal coordinates and how often to refresh (config.xml, weather_*). */
+    final String weatherPlace;
+    final String weatherLatitude;
+    final String weatherLongitude;
+    final int weatherRefreshMinutes;
 
     private Config(List<String> dockApps, boolean fillDock, List<String> hiddenApps, List<String> libraryApps, String liveTvPackage,
                    String liveTvAction, String liveTvInputId, Map<String, String> launchActions, Map<String, String> appLabels,
@@ -270,7 +279,8 @@ final class Config {
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, boolean fadeRows, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
-                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways) {
+                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways,
+                   boolean showWidgets, List<String> worldClockZones, String weatherPlace, String weatherLatitude, String weatherLongitude, int weatherRefreshMinutes) {
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -377,6 +387,12 @@ final class Config {
         this.glowStyle = glowStyle(glowStyle);
         this.wallpaperCaptions = wallpaperCaptions;
         this.glassStyle = glassStyle(glassStyle);
+        this.showWidgets = showWidgets;
+        this.worldClockZones = Collections.unmodifiableList(worldClockZones);
+        this.weatherPlace = weatherPlace;
+        this.weatherLatitude = weatherLatitude;
+        this.weatherLongitude = weatherLongitude;
+        this.weatherRefreshMinutes = weatherRefreshMinutes;
     }
 
     /** A known glow_style, or radial (the default) for anything else. */
@@ -495,6 +511,12 @@ final class Config {
         String glassStyle = res.getString(R.string.glass_style);
         boolean singleRow = res.getBoolean(R.bool.single_row);
         boolean dockBandAll = res.getBoolean(R.bool.dock_band_all);
+        boolean showWidgets = res.getBoolean(R.bool.show_widgets);
+        List<String> worldClockZones = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.world_clock_zones)));
+        String weatherPlace = res.getString(R.string.weather_place).trim();
+        String weatherLatitude = res.getString(R.string.weather_latitude).trim();
+        String weatherLongitude = res.getString(R.string.weather_longitude).trim();
+        int weatherRefreshMinutes = res.getInteger(R.integer.weather_refresh_minutes);
         boolean applied = false;
 
         File dir = dir(ctx);
@@ -600,6 +622,12 @@ final class Config {
             dockBandAll = bool(json, "dock_band_all", dockBandAll);
             glowStyle = string(json, "glow_style", glowStyle);
             glassStyle = string(json, "glass_style", glassStyle);
+            showWidgets = bool(json, "show_widgets", showWidgets);
+            worldClockZones = stringList(json, "world_clock_zones", worldClockZones);
+            weatherPlace = string(json, "weather_place", weatherPlace).trim();
+            weatherLatitude = string(json, "weather_latitude", weatherLatitude).trim();
+            weatherLongitude = string(json, "weather_longitude", weatherLongitude).trim();
+            weatherRefreshMinutes = integer(json, "weather_refresh_minutes", weatherRefreshMinutes, 5, 1440);
         }
         // A top-bar app is moved there, not copied: it leaves the grid.
         for (String pkg : topBarApps) if (!hidden.contains(pkg)) hidden.add(pkg);
@@ -660,7 +688,8 @@ final class Config {
                 dockBand, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough,
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                dateBelowClock, vpnPill, locale, powerOnHomeAlways);
+                dateBelowClock, vpnPill, locale, powerOnHomeAlways, showWidgets, worldClockZones, weatherPlace,
+                weatherLatitude, weatherLongitude, Math.max(5, weatherRefreshMinutes));
     }
 
     /**
