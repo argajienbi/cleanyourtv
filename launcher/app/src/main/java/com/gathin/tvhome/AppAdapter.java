@@ -153,8 +153,22 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
      */
     static int tileWidthPx(int innerWidthPx, int gridHeightPx, int columns, int rowsBelowDock, boolean dockTitle,
                            boolean dockRow, float density) {
+        boolean singleRowMode = false;
+        try {
+            // Try to detect single row from a static field if available
+            java.lang.reflect.Field f = com.gathin.tvhome.MainActivity.class.getDeclaredField("singleRow");
+        } catch (Exception ignored) {}
         int w = tileWidthPx(innerWidthPx, columns, density);
         if (gridHeightPx <= 0 || rowsBelowDock <= 0) return w;
+        if (dockRow && rowsBelowDock == 0) {
+            float reserved = (int)(BOTTOM_ROOM_DP * density * 0.5f) + (int)(16 * density);
+            float tileH = gridHeightPx - reserved - (int)(ITEM_EXTRA_DP * density);
+            if (tileH < (int)(80 * density)) tileH = (int)(80 * density);
+            int byHeight = Math.round(tileH * DESIGN_W_DP / DESIGN_H_DP);
+            w = (int) Math.min(w, byHeight * 0.9f);
+            w = (int) Math.min(w, (innerWidthPx / (columns > 0 ? columns : 6)) * 0.85f);
+            return Math.max((int)(100 * density), w);
+        }
         float reserved = (dockRow ? DOCK_EXTRA_DP + BOTTOM_ROOM_DP + (dockTitle ? TITLE_ROOM_DP : 0)
                 : TOP_ROOM_DP + COMPACT_BOTTOM_ROOM_DP) * density;
         float perItem = (gridHeightPx - reserved) / (rowsBelowDock + 1);
@@ -330,7 +344,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         docked = 0;
         while (docked < fresh.size() && isDocked(fresh.get(docked))) docked++;
-        emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
+        emptySlots = dockRow && !reordering && !this.singleRow ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
         for (int i = 0; i < emptySlots; i++) {
             fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
                     null, null, null, 0));

@@ -1,9 +1,36 @@
 {
-  "dock_apps": ["com.netflix.ninja", "com.amazon.amazonvideo.livingroom", "com.google.android.youtube.tv", "in.startv.hotstar"],
-  "hidden_apps": ["com.mediatek.wwtv.tvcenter", "com.mitv.gallery"],
+  "dock_apps": [
+    "com.netflix.ninja",
+    "com.amazon.amazonvideo.livingroom",
+    "com.google.android.youtube.tv",
+    "in.startv.hotstar"
+  ],
+  "hidden_apps": [
+    "com.mediatek.wwtv.tvcenter",
+    "com.mitv.gallery"
+  ],
   "columns": 4,
   "rows_below_dock": 0,
   "reduced_motion": false,
   "background_color": "#000000",
-  "wallpaper": false
+  "wallpaper": false,
+  "dock_row": true,
+  "single_row": true,
+  "dock_band_all": true,
+  "dock_glass": true,
+  "dock_opacity": 25,
+  "always_show_names": false,
+  "dock_title": false,
+  "icon_only_buttons": true,
+  "icon_only_inputs": true,
+  "show_widgets": true,
+  "world_clock_zones": [
+    "Asia/Jakarta",
+    "Asia/Tokyo",
+    "Europe/London"
+  ],
+  "weather_place": "Jakarta",
+  "weather_latitude": "-6.2088",
+  "weather_longitude": "106.8456",
+  "weather_refresh_minutes": 30
 }

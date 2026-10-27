@@ -15,5 +15,22 @@
   "app_glow": true,
   "glow_style": "horizon",
   "focus_overshoot": false,
-  "advanced_effects": true
+  "advanced_effects": true,
+  "dock_row": true,
+  "single_row": true,
+  "dock_band_all": true,
+  "dock_opacity": 25,
+  "always_show_names": false,
+  "dock_title": false,
+  "icon_only_inputs": true,
+  "show_widgets": true,
+  "world_clock_zones": [
+    "Asia/Jakarta",
+    "Asia/Tokyo",
+    "Europe/London"
+  ],
+  "weather_place": "Jakarta",
+  "weather_latitude": "-6.2088",
+  "weather_longitude": "106.8456",
+  "weather_refresh_minutes": 30
 }

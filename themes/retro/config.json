@@ -1,10 +1,10 @@
 {
   "background_color": "#000000",
-  "dock_glass": false,
+  "dock_glass": true,
   "dock_band": false,
   "glass_style": "rim",
   "dock_title": false,
-  "dock_opacity": 100,
+  "dock_opacity": 25,
   "fill_dock": true,
   "columns": 5,
   "ambient_glow": false,
@@ -29,5 +29,19 @@
   "wallpaper_dim": 10,
   "wallpaper_order": "sequential",
   "reduced_motion": true,
-  "sky_intensity": 0
+  "sky_intensity": 0,
+  "dock_row": true,
+  "single_row": true,
+  "dock_band_all": true,
+  "always_show_names": false,
+  "show_widgets": true,
+  "world_clock_zones": [
+    "Asia/Jakarta",
+    "Asia/Tokyo",
+    "Europe/London"
+  ],
+  "weather_place": "Jakarta",
+  "weather_latitude": "-6.2088",
+  "weather_longitude": "106.8456",
+  "weather_refresh_minutes": 30
 }
