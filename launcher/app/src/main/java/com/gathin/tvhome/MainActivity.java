@@ -68,6 +68,7 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.TextClock;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -199,6 +200,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** World clock and weather cards above the dock (show_widgets); hidden unless configured. */
     private View widgetBar, worldClockCard, weatherCard, widgetDivider;
     private TextView worldClockValue, weatherValue;
+    private ImageView clockWeatherIcon;
+    private TextView clockWeatherText;
+    private android.widget.TextClock clockHourView, clockMinuteView;
+    private TextView clockColonView;
     private boolean widgetsShown;
     private List<String> worldClockZones = Collections.emptyList();
     private String weatherPlace = "", weatherLatitude = "", weatherLongitude = "";
@@ -473,6 +478,31 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         greeting = findViewById(R.id.greeting);
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
+        clockHourView = findViewById(R.id.clockHour);
+        clockMinuteView = findViewById(R.id.clockMinute);
+        clockColonView = findViewById(R.id.clockColon);
+        SharedPreferences choicesClock = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        int clockSize = choicesClock.getInt("clock_size", 2);
+        float hourSize = clockSize == 1 ? 48f : (clockSize == 3 ? 72f : 64f);
+        float minSize = hourSize;
+        float colonSize = hourSize;
+        if (clockHourView != null) clockHourView.setTextSize(hourSize);
+        if (clockMinuteView != null) clockMinuteView.setTextSize(minSize);
+        if (clockColonView != null) clockColonView.setTextSize(colonSize);
+        int clockColor = choicesClock.getInt("clock_color", 0);
+        int hourColor = clockColor == 1 ? 0xFF00E5FF : (clockColor == 2 ? 0xFFFFB300 : 0xFFFFFFFF);
+        int minColor = clockColor == 1 ? 0x80FFFFFF : (clockColor == 2 ? 0xCCFFFFFF : 0x80FFFFFF);
+        if (clockHourView != null) clockHourView.setTextColor(hourColor);
+        if (clockMinuteView != null) clockMinuteView.setTextColor(minColor);
+        if (clockColonView != null) clockColonView.setTextColor(hourColor);
+        android.widget.TextClock ampmView = findViewById(R.id.ampm);
+        if (ampmView != null) {
+            android.view.ViewGroup.LayoutParams lp = ampmView.getLayoutParams();
+            if (lp instanceof android.widget.LinearLayout.LayoutParams) {
+                ((android.widget.LinearLayout.LayoutParams) lp).bottomMargin = Math.round((clockSize == 1 ? 6 : (clockSize == 3 ? 12 : 10)) * density);
+                ampmView.setLayoutParams(lp);
+            }
+        }
         if (!cfg.showGreeting) greeting.setVisibility(View.GONE);
         if (cfg.headerWhite) {
             // The clock's own white for the date and the line before it, instead of their dimmed whites.
@@ -482,18 +512,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (getResources().getBoolean(R.bool.rtl_menu_bar)) {
             // Center Hebrew greetings over the numeric time, independent of a visible AM/PM label. The clock's row
             // is watched too: date_below_clock can move the whole row right under a wider date.
-            View clock = findViewById(R.id.clock);
-            View clockRow = (View) clock.getParent();
-            View.OnLayoutChangeListener centerGreeting = (v, l, t, right, bottom, ol, ot, or, ob) -> {
-                ViewGroup.LayoutParams params = greeting.getLayoutParams();
-                if (params.width != clock.getWidth()) {
-                    params.width = clock.getWidth();
-                    greeting.setLayoutParams(params);
-                }
-                greeting.setTranslationX(clockRow.getLeft() + clock.getLeft());
-            };
-            clock.addOnLayoutChangeListener(centerGreeting);
-            clockRow.addOnLayoutChangeListener(centerGreeting);
+            final View clockv = findViewById(R.id.clockHour);
+            final View clockRowv = findViewById(R.id.clockRow);
+            if (clockv != null && clockRowv != null) {
+                View.OnLayoutChangeListener centerGreeting = (v, l, t, right, bottom, ol, ot, or, ob) -> {
+                    ViewGroup.LayoutParams params = greeting.getLayoutParams();
+                    if (params.width != clockv.getWidth()) {
+                        params.width = clockv.getWidth();
+                        greeting.setLayoutParams(params);
+                    }
+                    greeting.setTranslationX(clockRowv.getLeft() + clockv.getLeft());
+                };
+                clockv.addOnLayoutChangeListener(centerGreeting);
+                clockRowv.addOnLayoutChangeListener(centerGreeting);
+            }
         }
         btnWifi = findViewById(R.id.btnWifi);
         shamsiDate = findViewById(R.id.shamsiDate);
@@ -1752,6 +1784,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         widgetDivider = findViewById(R.id.widgetDivider);
         worldClockValue = findViewById(R.id.worldClockValue);
         weatherValue = findViewById(R.id.weatherValue);
+        clockWeatherIcon = findViewById(R.id.clockWeatherIcon);
+        clockWeatherText = findViewById(R.id.clockWeatherText);
+        View clockWeatherRow = findViewById(R.id.clockWeatherRow);
         worldClockZones = cfg.worldClockZones;
         weatherPlace = cfg.weatherPlace;
         weatherLatitude = cfg.weatherLatitude;
@@ -1760,6 +1795,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         worldClockCard.setVisibility(clock ? View.VISIBLE : View.GONE);
         weatherCard.setVisibility(weather ? View.VISIBLE : View.GONE);
         widgetDivider.setVisibility(clock && weather ? View.VISIBLE : View.GONE);
+        if (clockWeatherRow != null) {
+            if (weather) {
+                clockWeatherRow.setVisibility(View.VISIBLE);
+            } else {
+                clockWeatherRow.setVisibility(View.GONE);
+            }
+        }
         widgetsShown = true;
         widgetBar.setVisibility(View.VISIBLE);
         widgetBar.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
@@ -1773,16 +1815,47 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void updateWidgets() {
         if (!widgetsShown) return;
         if (worldClockCard.getVisibility() == View.VISIBLE) updateWorldClock();
-        if (weatherCard.getVisibility() != View.VISIBLE) return;
-        WeatherWidget.load(this, weatherLatitude, weatherLongitude, weatherRefreshMinutes, weather -> {
-            if (isDestroyed() || weather == null) return;
-            String description = WeatherWidget.describe(this, weather.code);
-            weatherValue.setText(weatherPlace.isEmpty()
-                    ? getString(R.string.weather_format_no_place, weather.temperature, description)
-                    : getString(R.string.weather_format, weatherPlace, weather.temperature, description));
-            positionWidgetBar();
-            updateHeroPosition();
-        });
+        if (weatherCard.getVisibility() == View.VISIBLE || clockWeatherText != null) {
+            WeatherWidget.load(this, weatherLatitude, weatherLongitude, weatherRefreshMinutes, weather -> {
+                if (isDestroyed() || weather == null) return;
+                String description = WeatherWidget.describe(this, weather.code);
+                if (weatherValue != null) {
+                    weatherValue.setText(weatherPlace.isEmpty()
+                            ? getString(R.string.weather_format_no_place, weather.temperature, description)
+                            : getString(R.string.weather_format, weatherPlace, weather.temperature, description));
+                }
+                if (clockWeatherText != null) {
+                    clockWeatherText.setText((weatherPlace.isEmpty() ? "" : weatherPlace + " · ") + weather.temperature + "° · " + description);
+                }
+                if (clockWeatherIcon != null) {
+                    int icon = getWeatherIcon(weather.code);
+                    if (icon != 0) {
+                        clockWeatherIcon.setImageResource(icon);
+                        clockWeatherIcon.setVisibility(View.VISIBLE);
+                    } else {
+                        clockWeatherIcon.setVisibility(View.GONE);
+                    }
+                }
+                positionWidgetBar();
+                updateHeroPosition();
+            });
+        } else {
+            return;
+        }
+    }
+
+    private int getWeatherIcon(int code) {
+        if (code == 0) return R.drawable.ic_weather_clear;
+        if (code == 1 || code == 2) return R.drawable.ic_weather_partly;
+        if (code == 3) return R.drawable.ic_weather_cloudy;
+        if (code == 45 || code == 48) return R.drawable.ic_weather_fog;
+        if (code >= 51 && code <= 57) return R.drawable.ic_weather_drizzle;
+        if (code >= 61 && code <= 67) return R.drawable.ic_weather_rain;
+        if (code >= 71 && code <= 77) return R.drawable.ic_weather_snow;
+        if (code >= 80 && code <= 82) return R.drawable.ic_weather_showers;
+        if (code == 85 || code == 86) return R.drawable.ic_weather_snow_showers;
+        if (code >= 95) return R.drawable.ic_weather_storm;
+        return R.drawable.ic_weather_cloudy;
     }
 
     /** HH:mm in up to four configured zones, with the city part of the zone id as its name. */
@@ -1804,7 +1877,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             ZoneId zone = ZoneId.systemDefault();
             text.append(cityOf(zone.getId())).append(' ').append(format.format(ZonedDateTime.now(zone)));
         }
-        worldClockValue.setText(text);
+        if (worldClockValue != null) {
+            worldClockValue.setText(text);
+        }
     }
 
     private static String cityOf(String zoneId) {
@@ -2430,10 +2505,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * the clock's row, and the line between them goes. In Hebrew (rtl_menu_bar) the date and the clock's row sit right.
      */
     private void moveDateBelowClock() {
-        View column = (View) findViewById(R.id.date).getParent();
-        View clockRow = (View) findViewById(R.id.clock).getParent();
+        View date = findViewById(R.id.date);
+        if (date == null) return;
+        View column = (View) date.getParent();
+        View clockRow = findViewById(R.id.clockRow);
+        if (clockRow == null) {
+            View clockv = findViewById(R.id.clockHour);
+            if (clockv != null) clockRow = (View) clockv.getParent();
+        }
+        if (clockRow == null) return;
         LinearLayout clockColumn = (LinearLayout) clockRow.getParent();
-        ((ViewGroup) column.getParent()).removeView(column);
+        if (column != null && column.getParent() != null) ((ViewGroup) column.getParent()).removeView(column);
         findViewById(R.id.clockDivider).setVisibility(View.GONE);
         // Its own width, not the column's: in Hebrew the column is only as wide as the clock.
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -2442,9 +2524,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (getResources().getBoolean(R.bool.rtl_menu_bar)) {
             // Date and clock flush right; the greeting stays left and follows the clock by translation.
             lp.gravity = Gravity.RIGHT;
-            ((LinearLayout.LayoutParams) clockRow.getLayoutParams()).gravity = Gravity.RIGHT;
+            if (clockRow.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+                ((LinearLayout.LayoutParams) clockRow.getLayoutParams()).gravity = Gravity.RIGHT;
+            }
         }
-        clockColumn.addView(column, clockColumn.indexOfChild(clockRow) + 1, lp);
+        if (clockColumn != null && column != null) {
+            clockColumn.addView(column, Math.min(clockColumn.getChildCount(), clockColumn.indexOfChild(clockRow) + 1), lp);
+        }
     }
 
     /** The first top-bar button after Inputs that is shown, in bar order (top_bar_apps, the network pill, ...); Settings is always there. */

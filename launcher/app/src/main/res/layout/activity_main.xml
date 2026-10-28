@@ -195,32 +195,95 @@
                     android:orientation="horizontal"
                     android:baselineAligned="true">
 
-                    <TextClock
-                        android:id="@+id/clock"
+                    <LinearLayout
+                        android:id="@+id/clockColumn"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:format12Hour="h:mm"
-                        android:format24Hour="HH:mm"
-                        android:textColor="#FFFFFFFF"
-                        android:textSize="52sp"
-                        android:fontFamily="@string/font_light"
-                        android:letterSpacing="-0.04"
-                        android:includeFontPadding="false" />
+                        android:orientation="vertical">
 
-                    <TextClock
-                        android:id="@+id/ampm"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:layout_gravity="bottom"
-                        android:layout_marginBottom="8dp"
-                        android:format12Hour="a"
-                        android:format24Hour=""
-                        android:textColor="#B3FFFFFF"
-                        android:textSize="15sp"
-                        android:fontFamily="@string/font_medium"
-                        android:letterSpacing="0.08"
-                        android:textAllCaps="true" />
+                        <LinearLayout
+                            android:id="@+id/clockRow"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:baselineAligned="true">
+
+                            <TextClock
+                                android:id="@+id/clockHour"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:format12Hour="h"
+                                android:format24Hour="HH"
+                                android:textColor="#FFFFFFFF"
+                                android:textSize="64sp"
+                                android:fontFamily="@string/font_light"
+                                android:letterSpacing="-0.04"
+                                android:includeFontPadding="false" />
+
+                            <TextView
+                                android:id="@+id/clockColon"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text=":"
+                                android:textColor="#FFFFFFFF"
+                                android:textSize="64sp"
+                                android:fontFamily="@string/font_light"
+                                android:includeFontPadding="false" />
+
+                            <TextClock
+                                android:id="@+id/clockMinute"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:format12Hour="mm"
+                                android:format24Hour="mm"
+                                android:textColor="#80FFFFFF"
+                                android:textSize="64sp"
+                                android:fontFamily="@string/font_light"
+                                android:letterSpacing="-0.04"
+                                android:includeFontPadding="false" />
+
+                            <TextClock
+                                android:id="@+id/ampm"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_gravity="bottom"
+                                android:layout_marginBottom="10dp"
+                                android:format12Hour="a"
+                                android:format24Hour=""
+                                android:textColor="#B3FFFFFF"
+                                android:textSize="18sp"
+                                android:fontFamily="@string/font_medium"
+                                android:letterSpacing="0.08"
+                                android:textAllCaps="true" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/clockWeatherRow"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="-4dp"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:id="@+id/clockWeatherIcon"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:scaleType="fitCenter"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/clockWeatherText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:textColor="#B3FFFFFF"
+                                android:textSize="14sp"
+                                android:fontFamily="@string/font_regular" />
+                        </LinearLayout>
+                    </LinearLayout>
 
                     <View
                         android:id="@+id/clockDivider"

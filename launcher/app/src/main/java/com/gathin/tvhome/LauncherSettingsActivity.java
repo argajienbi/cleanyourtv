@@ -41,6 +41,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView themeChoice;
     private TextView wallpaperChoice;
     private TextView animationsChoice;
+    private TextView clockSizeSm, clockSizeMd, clockSizeLg;
+    private TextView clockColorWhite, clockColorCyan, clockColorAmber;
     private TextView advancedChoice;
     private TextView followThemeChoice;
     private TextView openOnStartChoice;
@@ -64,6 +66,44 @@ public final class LauncherSettingsActivity extends Activity {
         });
         themeChoice = findViewById(R.id.themeChoice);
         themeChoice.setOnClickListener(v -> showThemePicker());
+
+        clockSizeSm = findViewById(R.id.clockSizeSm);
+        clockSizeMd = findViewById(R.id.clockSizeMd);
+        clockSizeLg = findViewById(R.id.clockSizeLg);
+        if (clockSizeSm != null) clockSizeSm.setOnClickListener(v -> {
+            choices.edit().putInt("clock_size", 1).apply();
+            Toast.makeText(this, "Ukuran jam: Kecil", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
+        if (clockSizeMd != null) clockSizeMd.setOnClickListener(v -> {
+            choices.edit().putInt("clock_size", 2).apply();
+            Toast.makeText(this, "Ukuran jam: Sedang", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
+        if (clockSizeLg != null) clockSizeLg.setOnClickListener(v -> {
+            choices.edit().putInt("clock_size", 3).apply();
+            Toast.makeText(this, "Ukuran jam: Besar", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
+
+        clockColorWhite = findViewById(R.id.clockColorWhite);
+        clockColorCyan = findViewById(R.id.clockColorCyan);
+        clockColorAmber = findViewById(R.id.clockColorAmber);
+        if (clockColorWhite != null) clockColorWhite.setOnClickListener(v -> {
+            choices.edit().putInt("clock_color", 0).apply();
+            Toast.makeText(this, "Warna jam: Putih", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
+        if (clockColorCyan != null) clockColorCyan.setOnClickListener(v -> {
+            choices.edit().putInt("clock_color", 1).apply();
+            Toast.makeText(this, "Warna jam: Cyan", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
+        if (clockColorAmber != null) clockColorAmber.setOnClickListener(v -> {
+            choices.edit().putInt("clock_color", 2).apply();
+            Toast.makeText(this, "Warna jam: Amber", Toast.LENGTH_SHORT).show();
+            refresh();
+        });
         columns = config.columns;
         rowsBelowDock = config.rowsBelowDock;
         dockOpacity = config.dockOpacity;
@@ -417,6 +457,14 @@ public final class LauncherSettingsActivity extends Activity {
         advancedChoice.setEnabled(animations);
         advancedChoice.setAlpha(animations ? 1f : 0.5f);
         themeChoice.setText(getString(R.string.theme_state, ThemeStore.appliedLabel(this)));
+        int clockSize = choices.getInt("clock_size", 2);
+        if (clockSizeSm != null) clockSizeSm.setSelected(clockSize == 1);
+        if (clockSizeMd != null) clockSizeMd.setSelected(clockSize == 2);
+        if (clockSizeLg != null) clockSizeLg.setSelected(clockSize == 3);
+        int clockColor = choices.getInt("clock_color", 0);
+        if (clockColorWhite != null) clockColorWhite.setSelected(clockColor == 0);
+        if (clockColorCyan != null) clockColorCyan.setSelected(clockColor == 1);
+        if (clockColorAmber != null) clockColorAmber.setSelected(clockColor == 2);
         String wallpaperCurrent = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         wallpaperChoice.setText(getString(R.string.wallpaper_state,
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
